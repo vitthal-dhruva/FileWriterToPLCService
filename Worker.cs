@@ -216,7 +216,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static async void _opcSession_KeepAlive(ISession session, KeepAliveEventArgs e)
+    private static void _opcSession_KeepAlive(ISession session, KeepAliveEventArgs e)
     {
         try
         {
