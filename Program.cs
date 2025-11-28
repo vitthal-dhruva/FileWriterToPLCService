@@ -1,8 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+
 using Serilog;
-using System;
-using System.IO;
+
 
 class Program
 {
@@ -22,7 +20,7 @@ class Program
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.File(logFile, rollingInterval: RollingInterval.Year)
-            .WriteTo.Console()
+            //.WriteTo.Console()
             .CreateLogger();
         //Log.Information("Service starting...");
         //Log.Information("Log file path: {LogFilePath}", logFile); // Shows exact location
@@ -31,7 +29,7 @@ class Program
         {
             Host.CreateDefaultBuilder(args)
                 .UseWindowsService()
-                .UseSerilog()
+                .UseSerilog((ctx, lc) => lc.WriteTo.File("log.txt"))
                 .ConfigureServices(services =>
                 {
                     services.AddHostedService<WorkerService>();

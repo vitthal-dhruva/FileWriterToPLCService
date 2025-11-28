@@ -1,12 +1,7 @@
-﻿using Microsoft.AspNetCore.Routing.Constraints;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
+﻿
 using Opc.Ua;
 using Opc.Ua.Client;
 using Serilog;
-using System.Threading.Tasks;
 using System.Timers;
 
 
@@ -14,17 +9,17 @@ public class WorkerService : BackgroundService
 {
 
     // Your static fields moved from Program
-    private static Session _opcSession;
-    private static FileSystemWatcher _watcher;
-    private static SessionReconnectHandler reconnectHandler = null;
-    private static object lockObj = new object();
-    public static System.Timers.Timer tmr;
-    private static bool FileMove = true;
-    private static string filename = string.Empty;
-    private static readonly object _timerLock = new object();
-    private static bool _isRunning = false; // optional but recommended
+    private Session _opcSession = null;
+    private FileSystemWatcher _watcher = null;
+    private SessionReconnectHandler reconnectHandler = null;
+    private object lockObj = new object();
+    public System.Timers.Timer tmr = null;
+    private bool FileMove = true;
+    private string filename = string.Empty;
+    private readonly object _timerLock = new object();
+    private bool _isRunning = false; // optional but recommended
 
-    private static byte ToBcd(int value) => (byte)(((value / 10) << 4) | (value % 10));
+    private byte ToBcd(int value) => (byte)(((value / 10) << 4) | (value % 10));
 
     // ====================================================================
     //  WORKER SERVICE ENTRY POINT (Replaces your Main)
@@ -33,10 +28,11 @@ public class WorkerService : BackgroundService
     {
         try
         {
+            Log.Information("=== Worker Service Started ===");
             // -------- Load config (same as your Main) ----------
             var builder = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
             IConfiguration configuration = builder.Build();
 
@@ -69,7 +65,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static async void Tmr_Elapsed(object? sender, ElapsedEventArgs e)
+    public async void Tmr_Elapsed(object? sender, ElapsedEventArgs e)
     {
         try
         {
@@ -155,7 +151,7 @@ public class WorkerService : BackgroundService
 
     // OPC CONNECT (unchanged)
     [Obsolete]
-    private static async Task ConnectOPC()
+    public async Task ConnectOPC()
     {
         try
         {
@@ -216,7 +212,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static void _opcSession_KeepAlive(ISession session, KeepAliveEventArgs e)
+    public void _opcSession_KeepAlive(ISession session, KeepAliveEventArgs e)
     {
         try
         {
@@ -247,7 +243,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static void Client_ReconnectComplete(object? sender, EventArgs e)
+    public void Client_ReconnectComplete(object? sender, EventArgs e)
     {
         lock (lockObj)
         {
@@ -261,7 +257,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static async void File_Created(object sender, FileSystemEventArgs e)
+    public async void File_Created(object sender, FileSystemEventArgs e)
     {
         try
         {
@@ -291,7 +287,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static void WaitForFile(string file)
+    public void WaitForFile(string file)
     {
         while (true)
         {
@@ -303,7 +299,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static byte[] ConvertToSiemensDT(DateTime dt)
+    public byte[] ConvertToSiemensDT(DateTime dt)
     {
         byte[] data = new byte[8];
 
@@ -323,7 +319,7 @@ public class WorkerService : BackgroundService
         return data;
     }
 
-    private static async Task<bool> PlcOperation(TestData data)
+    public async Task<bool> PlcOperation(TestData data)
     {
         if (_opcSession != null)
         {
@@ -456,7 +452,7 @@ public class WorkerService : BackgroundService
         }
     }
 
-    private static void MoveToBackup(string file)
+    public void MoveToBackup(string file)
     {
         try
         {
@@ -516,127 +512,129 @@ public class WorkerService : BackgroundService
         await base.StopAsync(cancellationToken);
     }
 
-}
 
-// ============================================================
-//  STATIC CLASSES: KEPT EXACTLY SAME AS YOUR ORIGINAL CODE
-// ============================================================
 
-public static class Config
-{
-    public static string WatchFolder { get; private set; } = string.Empty;
-    public static string BackupFolder { get; private set; } = string.Empty;
+    // ============================================================
+    //  STATIC CLASSES: KEPT EXACTLY SAME AS YOUR ORIGINAL CODE
+    // ============================================================
 
-    public static string OpcUrl { get; private set; } = string.Empty;
-
-    public static string Node_SerialNo { get; private set; } = string.Empty;
-    public static string Node_TestValue { get; private set; } = string.Empty;
-    public static string Node_TestDate { get; private set; } = string.Empty;
-    public static string Node_Status { get; private set; } = string.Empty;
-
-    public static string TOL_HI { get; private set; } = string.Empty;
-    public static string TOL_OK { get; private set; } = string.Empty;
-    public static string TOL_LO { get; private set; } = string.Empty;
-
-    public static string Node_ScanFlag { get; private set; } = string.Empty;
-
-    public static void Load(IConfiguration config)
+    public static class Config
     {
-        WatchFolder = config["AppConfig:WatchFolder"] ?? string.Empty;
-        BackupFolder = config["AppConfig:BackupFolder"] ?? string.Empty;
-        OpcUrl = config["AppConfig:OpcUrl"] ?? string.Empty;
-        Node_SerialNo = config["AppConfig:Node_SerialNo"] ?? string.Empty;
-        Node_TestValue = config["AppConfig:Node_TestValue"] ?? string.Empty;
-        Node_TestDate = config["AppConfig:Node_TestDate"] ?? string.Empty;
-        Node_Status = config["AppConfig:Node_Status"] ?? string.Empty;
-        TOL_HI = config["AppConfig:TOL_HI"] ?? string.Empty;
-        TOL_OK = config["AppConfig:TOL_OK"] ?? string.Empty;
-        TOL_LO = config["AppConfig:TOL_LO"] ?? string.Empty;
-        Node_ScanFlag = config["AppConfig:Node_ScanFlag"] ?? string.Empty;
-    }
-}
+        public static string WatchFolder { get; private set; } = string.Empty;
+        public static string BackupFolder { get; private set; } = string.Empty;
 
-public class TestData
-{
-    public float TestValue { get; set; }
-    public float TolHi { get; set; }
-    public float TolOk { get; set; }
-    public float TolLo { get; set; }
-    public string Status { get; set; }
-    public DateTime TestDate { get; set; }
-}
+        public static string OpcUrl { get; private set; } = string.Empty;
 
-public static class FileParser
-{
-    public static TestData Parse(string file)
-    {
-        try
+        public static string Node_SerialNo { get; private set; } = string.Empty;
+        public static string Node_TestValue { get; private set; } = string.Empty;
+        public static string Node_TestDate { get; private set; } = string.Empty;
+        public static string Node_Status { get; private set; } = string.Empty;
+
+        public static string TOL_HI { get; private set; } = string.Empty;
+        public static string TOL_OK { get; private set; } = string.Empty;
+        public static string TOL_LO { get; private set; } = string.Empty;
+
+        public static string Node_ScanFlag { get; private set; } = string.Empty;
+
+        public static void Load(IConfiguration config)
         {
-            var dict = new Dictionary<string, string>();
-
-            foreach (var line in File.ReadLines(file))
-            {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                if (!line.Contains("=")) continue;
-
-                var parts = line.Split('=', 2);
-                string key = parts[0].Trim();
-                string value = parts[1].Trim();
-
-                dict[key] = value;
-            }
-            if (IsMissing(dict, "Test_Value") || IsMissing(dict, "TOL_HI") || IsMissing(dict, "TOL_OK")
-                || IsMissing(dict, "TOL_LO") || IsMissing(dict, "Test_Date"))
-            {
-                Log.Error("File parsing failed or missing required data.");
-                return null;    // return null if ANY input missing
-            }
-            float testValue = GetDouble(dict, "Test_Value");
-            float tolHi = GetDouble(dict, "TOL_HI");
-            float tolOk = GetDouble(dict, "TOL_OK");
-            float tolLo = GetDouble(dict, "TOL_LO");
-            DateTime date = GetDate(dict, "Test_Date");
-
-            double lowerLimit = tolOk - tolLo;
-            double upperLimit = tolOk + tolHi;
-
-
-            string status = (testValue >= lowerLimit && testValue <= upperLimit)
-                              ? "OK"
-                              : "NG";
-
-            return new TestData
-            {
-                TestValue = testValue,
-                TolHi = tolHi,
-                TolOk = tolOk,
-                TolLo = tolLo,
-                TestDate = date,
-                Status = status
-            };
+            WatchFolder = config["AppConfig:WatchFolder"] ?? string.Empty;
+            BackupFolder = config["AppConfig:BackupFolder"] ?? string.Empty;
+            OpcUrl = config["AppConfig:OpcUrl"] ?? string.Empty;
+            Node_SerialNo = config["AppConfig:Node_SerialNo"] ?? string.Empty;
+            Node_TestValue = config["AppConfig:Node_TestValue"] ?? string.Empty;
+            Node_TestDate = config["AppConfig:Node_TestDate"] ?? string.Empty;
+            Node_Status = config["AppConfig:Node_Status"] ?? string.Empty;
+            TOL_HI = config["AppConfig:TOL_HI"] ?? string.Empty;
+            TOL_OK = config["AppConfig:TOL_OK"] ?? string.Empty;
+            TOL_LO = config["AppConfig:TOL_LO"] ?? string.Empty;
+            Node_ScanFlag = config["AppConfig:Node_ScanFlag"] ?? string.Empty;
         }
-        catch (Exception ex)
+
+    }
+        public class TestData
         {
-            Log.Error("File Read Error: " + ex.Message);
-            return null;
+            public float TestValue { get; set; }
+            public float TolHi { get; set; }
+            public float TolOk { get; set; }
+            public float TolLo { get; set; }
+            public string Status { get; set; }
+            public DateTime TestDate { get; set; }
         }
-    }
-    private static bool IsMissing(Dictionary<string, string> dict, string key)
-    {
-        return !dict.ContainsKey(key) || string.IsNullOrWhiteSpace(dict[key]);
-    }
 
-    private static float GetDouble(Dictionary<string, string> dict, string key)
-    {
-        return dict.ContainsKey(key) && float.TryParse(dict[key], out float val)
-            ? val
-            : 0;
-    }
+        public static class FileParser
+        {
+            public static TestData Parse(string file)
+            {
+                try
+                {
+                    var dict = new Dictionary<string, string>();
 
-    private static DateTime GetDate(Dictionary<string, string> dict, string key)
-    {
-        return dict.ContainsKey(key) && DateTime.TryParse(dict[key], out DateTime dt)
-            ? dt
-            : DateTime.MinValue;
-    }
+                    foreach (var line in File.ReadLines(file))
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        if (!line.Contains("=")) continue;
+
+                        var parts = line.Split('=', 2);
+                        string key = parts[0].Trim();
+                        string value = parts[1].Trim();
+
+                        dict[key] = value;
+                    }
+                    if (IsMissing(dict, "Test_Value") || IsMissing(dict, "TOL_HI") || IsMissing(dict, "TOL_OK")
+                        || IsMissing(dict, "TOL_LO") || IsMissing(dict, "Test_Date"))
+                    {
+                        Log.Error("File parsing failed or missing required data.");
+                        return null;    // return null if ANY input missing
+                    }
+                    float testValue = GetDouble(dict, "Test_Value");
+                    float tolHi = GetDouble(dict, "TOL_HI");
+                    float tolOk = GetDouble(dict, "TOL_OK");
+                    float tolLo = GetDouble(dict, "TOL_LO");
+                    DateTime date = GetDate(dict, "Test_Date");
+
+                    double lowerLimit = tolOk - tolLo;
+                    double upperLimit = tolOk + tolHi;
+
+
+                    string status = (testValue >= lowerLimit && testValue <= upperLimit)
+                                      ? "OK"
+                                      : "NG";
+
+                    return new TestData
+                    {
+                        TestValue = testValue,
+                        TolHi = tolHi,
+                        TolOk = tolOk,
+                        TolLo = tolLo,
+                        TestDate = date,
+                        Status = status
+                    };
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("File Read Error: " + ex.Message);
+                    return null;
+                }
+            }
+        public static bool IsMissing(Dictionary<string, string> dict, string key)
+            {
+                return !dict.ContainsKey(key) || string.IsNullOrWhiteSpace(dict[key]);
+            }
+
+        public static float GetDouble(Dictionary<string, string> dict, string key)
+            {
+                return dict.ContainsKey(key) && float.TryParse(dict[key], out float val)
+                    ? val
+                    : 0;
+            }
+
+            public static DateTime GetDate(Dictionary<string, string> dict, string key)
+            {
+                return dict.ContainsKey(key) && DateTime.TryParse(dict[key], out DateTime dt)
+                    ? dt
+                    : DateTime.MinValue;
+            }
+        }
+    
 }
